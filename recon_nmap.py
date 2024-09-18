@@ -20,6 +20,16 @@ def executar_amass(dominio, diretorio):
     subprocess.run(['amass', 'enum', '-d', dominio, '-o', amass_output], check=True)
     return amass_output
 
+# Função para ler domínios do arquivo de saída do Amass e validar
+def validar_ips_amass(amass_output):
+    ips_validos = set()
+    with open(amass_output, 'r') as f:
+        dominios = f.read().splitlines()
+        for dominio in dominios:
+            ips = validar_dominio(dominio)
+            ips_validos.update(ips)
+    return list(ips_validos)
+
 # Função para executar Nmap com a lista de IPs
 def executar_nmap(nmap_opcao, arquivo_ips, output_file):
     nmap_opcoes = {
@@ -68,16 +78,21 @@ def main():
 
     # Executar Amass e verificar se o domínio é válido
     amass_output = executar_amass(args.u, args.d)
-    ips = validar_dominio(args.u)
 
-    if not ips:
+    # Validar os IPs dos domínios gerados pelo Amass
+    ips_validos = validar_ips_amass(amass_output)
+
+    if not ips_validos:
         print(f"Domínio {args.u} não possui IPs válidos.")
         sys.exit(1)
+
+    # Remover IPs duplicados
+    ips_unicos = list(set(ips_validos))
 
     # Salvar os IPs encontrados em um arquivo
     arquivo_ips = os.path.join(args.d, f"{args.u}_ips.txt")
     with open(arquivo_ips, 'w') as f:
-        for ip in ips:
+        for ip in ips_unicos:
             f.write(ip + '\n')
 
     # Executar Nmap
